@@ -62,8 +62,7 @@ namespace JogoBebe
 
         public static GameObject Build(string key, CharSpec s)
         {
-            var prefab = Resources.Load<GameObject>("Models/Imported/" + key);
-            if (prefab == null) prefab = Resources.Load<GameObject>("Models/" + key);
+            var prefab = LoadModel(key);
             if (prefab != null)
             {
                 var prefabRoot = new GameObject(key);
@@ -123,6 +122,25 @@ namespace JogoBebe
             if (s.beard) Gfx.Part(t, P, new Vector3(0, 1.47f, .1f), new Vector3(.18f, .1f, .1f), s.hair);
 
             return root;
+        }
+
+        /// <summary>Procura o modelo em varios lugares: prefab gerado pelo menu, prefab solto em Resources/Models
+        /// e o proprio glTF importado dentro de Resources/Models/&lt;chave&gt;/.</summary>
+        public static GameObject LoadModel(string key)
+        {
+            string[] paths =
+            {
+                "Models/Imported/" + key,
+                "Models/" + key,
+                "Models/" + key + "/scene",
+                "Models/" + key + "/female_character/scene"
+            };
+            foreach (var p in paths)
+            {
+                var g = Resources.Load<GameObject>(p);
+                if (g != null) return g;
+            }
+            return null;
         }
 
         static void FitHumanHeight(Transform model, float targetHeight)

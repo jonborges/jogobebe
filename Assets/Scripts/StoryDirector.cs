@@ -85,10 +85,13 @@ namespace JogoBebe
             var driver = CharacterFactory.Build("Pai", CharacterFactory.Pai());
             var car = Vehicles.Car(new Color(.55f, .5f, .42f), driver, true, "CarroPai");
             car.name = "CarroPai";
-            car.transform.position = new Vector3(StreetRoute.NearLaneX, .05f, player.position.z - 25f);
+            // nasce longe, escondido pela neblina, e chega por tras na faixa do lado da calcada
+            float startZ = Mathf.Max(player.position.z - 55f, StreetRoute.StartZ + 8f);
+            car.transform.position = new Vector3(StreetRoute.NearLaneX, .05f, startZ);
 
             father = car.AddComponent<FatherCar>();
             father.player = player;
+            father.curbX = StreetRoute.CurbStopX;
             father.onStopped = OnFatherStopped;
             GameUI.Objective = "Um carro está desacelerando na sua direção...";
         }
@@ -97,7 +100,8 @@ namespace JogoBebe
         {
             var go = new GameObject("JanelaMotorista");
             go.transform.SetParent(father.transform, false);
-            go.transform.localPosition = new Vector3(-.55f, 1.2f, 0f);
+            // janela do lado da calcada (lado direito do carro, que olha para +Z)
+            go.transform.localPosition = new Vector3(.55f, 1.2f, 0f);
             var tn = go.AddComponent<TalkNPC>();
             tn.player = player;
             tn.label = "Falar com o motorista";

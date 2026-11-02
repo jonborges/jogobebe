@@ -7,35 +7,75 @@ using UnityEngine;
 
 public static class JogoBebeMenu
 {
+    const string OutputFolder = "Assets/Resources/Models/Imported";
+
+    // Cada modelo pode estar em Assets/Models/... (jeito antigo) ou direto em Assets/Resources/Models/...
+    static readonly string[] MapPaths =
+    {
+        "Assets/Models/MAP/scene.gltf",
+        "Assets/Resources/Models/MAP/scene.gltf"
+    };
+    static readonly string[] WomanPaths =
+    {
+        "Assets/Models/WOMAN/scene.gltf",
+        "Assets/Resources/Models/WOMAN/scene.gltf"
+    };
+    static readonly string[] RebecaPaths =
+    {
+        "Assets/Models/REBECA/female_character/scene.gltf",
+        "Assets/Resources/Models/REBECA/female_character/scene.gltf",
+        "Assets/Resources/Models/REBECA/scene.gltf"
+    };
+
     [InitializeOnLoadMethod]
     static void ScheduleModelImportOnEditorLoad()
     {
-        EditorApplication.delayCall += ImportModelsIfReady;
-    }
-    static void ImportModelsIfReady()
-    {
-        if (AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/MAP/scene.gltf") != null &&
-            AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/WOMAN/scene.gltf") != null &&
-            AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/REBECA/female_character/scene.gltf") != null)
-            ImportGltfModels();
+        EditorApplication.delayCall += () => ImportAll(false);
     }
 
     [MenuItem("Jogo Bebe/Importar modelos glTF")]
     public static void ImportGltfModels()
     {
-        const string outputFolder = "Assets/Resources/Models/Imported";
-        Directory.CreateDirectory(outputFolder);
+        ImportAll(true);
+    }
 
-        bool importedAny = false;
-        importedAny |= SaveImportedModel("Assets/Models/MAP/scene.gltf", outputFolder + "/MAP.prefab");
-        importedAny |= SaveImportedModel("Assets/Models/WOMAN/scene.gltf", outputFolder + "/WOMAN.prefab");
-        importedAny |= SaveImportedModel("Assets/Models/REBECA/female_character/scene.gltf", outputFolder + "/REBECA.prefab");
+    /// <summary>force = recria os prefabs mesmo que ja existam; sem force so cria os que faltam.</summary>
+    static void ImportAll(bool force)
+    {
+        Directory.CreateDirectory(OutputFolder);
 
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
+        bool changed = false;
+        var done = new List<string>();
+        changed |= Import("MAP", MapPaths, force, done);
+        changed |= Import("WOMAN", WomanPaths, force, done);
+        changed |= Import("REBECA", RebecaPaths, force, done);
 
-        if (importedAny)
-            Debug.Log("Modelos MAP, WOMAN e REBECA preparados em Resources/Models/Imported.");
+        if (changed)
+        {
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Modelos preparados em Resources/Models/Imported: " + string.Join(", ", done.ToArray()));
+        }
+        else if (force)
+        {
+            Debug.LogWarning("Nenhum modelo glTF encontrado/importado. Confira se o Unity glTFast terminou de importar " +
+                             "e se os arquivos estao em Assets/Models/ ou Assets/Resources/Models/.");
+        }
+    }
+
+    static bool Import(string key, string[] candidates, bool force, List<string> done)
+    {
+        string source = null;
+        foreach (var c in candidates)
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(c) != null) { source = c; break; }
+        if (source == null) return false; // modelo ausente (ex.: REBECA) nao impede os outros
+
+        string prefabPath = OutputFolder + "/" + key + ".prefab";
+        if (!force && File.Exists(prefabPath)) return false;
+
+        bool ok = SaveImportedModel(source, prefabPath);
+        if (ok) done.Add(key);
+        return ok;
     }
 
     static bool SaveImportedModel(string sourcePath, string prefabPath)
@@ -57,12 +97,9 @@ public static class JogoBebeMenu
         }
 
         modelInstance.transform.SetParent(prefabRoot.transform, false);
-        if (sourcePath.Contains("/MAP/"))
-        {
-            // O glTF do mapa traz um giro de -90 graus no objeto-raiz; o terreno
-            // e os carros do jogo usam o plano XZ, entao esse giro deixava a cidade de lado.
-            modelInstance.transform.localRotation = Quaternion.identity;
-        }
+        // O glTF do mapa tem dois nos-raiz com giros de -90 e +90 graus em X que se anulam:
+        // o resultado ja e a cidade no plano XZ, com Y para cima. Nao precisa girar nada.
+        modelInstance.transform.localRotation = Quaternion.identity;
 
         var prefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
         Object.DestroyImmediate(prefabRoot);
@@ -95,12 +132,12 @@ public class JogoBebeGltfPostprocessor : AssetPostprocessor
     {
         foreach (var path in importedAssets)
         {
-            if (path == "Assets/Models/MAP/scene.gltf" || path == "Assets/Models/WOMAN/scene.gltf" ||
-                path == "Assets/Models/REBECA/female_character/scene.gltf")
-            {
-                EditorApplication.delayCall += JogoBebeMenu.ImportGltfModels;
-                return;
-            }
+            bool isModel = path.EndsWith("/scene.gltf") &&
+                           (path.Contains("/MAP/") || path.Contains("/WOMAN/") || path.Contains("/REBECA/"));
+            if (!isModel) continue;
+
+            EditorApplication.delayCall += () => JogoBebeMenu.ImportGltfModels();
+            return;
         }
     }
 }

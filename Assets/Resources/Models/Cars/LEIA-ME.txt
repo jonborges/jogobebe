@@ -1,0 +1,10 @@
+Carros do trafego (Resources.LoadAll<GameObject>("Models/Cars")).
+
+Qualquer .glb/.gltf/prefab colocado nesta pasta entra sozinho no trafego: o script Vehicles.cs
+ajusta escala (~4,2 m de comprimento), centraliza e apoia no chao. Frente do modelo = +Z.
+Se algum pacote vier com a frente virada, ajuste Vehicles.ImportedCarYaw.
+
+Modelos atuais: Kenney "Starter Kit Racing" (vehicle-truck-*.glb), licenca CC0 (dominio publico).
+Fonte: https://github.com/KenneyNL/Starter-Kit-Racing
+Para sedans, taxi, van e policia (mesmo autor, CC0): https://kenney.nl/assets/car-kit
+Baixe o zip, copie os .glb para esta pasta e pronto.
